@@ -1,6 +1,8 @@
 let timer;
 let timeLeft = 25 * 60;
 let isRunning = false;
+let audioContext;
+let brownNoiseNode;
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startTimer') {
@@ -11,8 +13,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     resetTimer();
   } else if (request.action === 'getTimerState') {
     sendResponse({ timeLeft, isRunning });
+  } else if (request.action === 'startNoise') {
+    startNoise();
+  } else if (request.action === 'stopNoise') {
+    stopNoise();
   }
 });
+
+async function startNoise() {
+  if (!audioContext) {
+    audioContext = new (AudioContext || webkitAudioContext)();
+    await audioContext.audioWorklet.addModule('brown-noise-processor.js');
+    brownNoiseNode = new AudioWorkletNode(audioContext, 'brown-noise-processor');
+    brownNoiseNode.connect(audioContext.destination);
+  }
+}
+
+function stopNoise() {
+  if (brownNoiseNode) {
+    brownNoiseNode.disconnect();
+    brownNoiseNode = null;
+  }
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+}
 
 function startTimer() {
   if (!isRunning) {
@@ -39,4 +65,5 @@ function resetTimer() {
   clearInterval(timer);
   timeLeft = 25 * 60;
   isRunning = false;
+  stopNoise();
 }

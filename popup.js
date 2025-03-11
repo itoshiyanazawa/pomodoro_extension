@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isRunning) {
       chrome.runtime.sendMessage({ action: 'startTimer' });
       startTimer();
+      if (document.getElementById('brown-noise').checked) {
+        chrome.runtime.sendMessage({ action: 'startNoise' });
+      }
     } else {
       chrome.runtime.sendMessage({ action: 'stopTimer' });
       stopTimer();
@@ -31,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('reset').addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'resetTimer' });
     resetTimer();
+    chrome.runtime.sendMessage({ action: 'stopNoise' });
   });
 
   document.getElementById('brown-noise').addEventListener('change', (e) => {
