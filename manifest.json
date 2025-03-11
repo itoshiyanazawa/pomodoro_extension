@@ -3,7 +3,7 @@
   "name": "Pomodoro Timer",
   "version": "1.0",
   "description": "A simple Pomodoro timer.",
-  "permissions": ["storage", "background"],
+  "permissions": ["storage", "background", "notifications"],
   "background": {
     "scripts": ["background.js"],
     "persistent": false

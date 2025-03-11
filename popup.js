@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
-  chrome.runtime.sendMessage({ action: 'getTimerState' }, (response) => {
-    timeLeft = response.timeLeft;
-    isRunning = response.isRunning;
+  chrome.storage.local.get(['timeLeft', 'isRunning', 'isBreak', 'brownNoiseEnabled'], (result) => {
+    timeLeft = result.timeLeft !== undefined ? result.timeLeft : 25 * 60; // Set to 25 minutes
+    isRunning = result.isRunning !== undefined ? result.isRunning : false;
+    isBreak = result.isBreak !== undefined ? result.isBreak : false;
+    document.getElementById('brown-noise').checked = result.brownNoiseEnabled || false;
     updateDisplay();
     if (isRunning) {
       startTimer();
@@ -14,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
       startTimer();
       if (document.getElementById('brown-noise').checked) {
         chrome.runtime.sendMessage({ action: 'startNoise' });
+        chrome.storage.local.set({ brownNoiseEnabled: true });
       }
     } else {
       chrome.runtime.sendMessage({ action: 'stopTimer' });
@@ -35,86 +38,69 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.runtime.sendMessage({ action: 'resetTimer' });
     resetTimer();
     chrome.runtime.sendMessage({ action: 'stopNoise' });
+    chrome.storage.local.set({ brownNoiseEnabled: false });
   });
 
   document.getElementById('brown-noise').addEventListener('change', (e) => {
     if (e.target.checked) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const bufferSize = 4096;
-
-      brownNoiseNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
-      let lastOut = 0.0;
-
-      brownNoiseNode.onaudioprocess = function(e) {
-        const output = e.outputBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          let white = Math.random() * 2 - 1;
-          output[i] = (lastOut + (0.02 * white)) / 1.02;
-          lastOut = output[i];
-        }
-      };
-
-      brownNoiseNode.connect(audioContext.destination);
+      chrome.runtime.sendMessage({ action: 'startNoise' });
     } else {
-      if (brownNoiseNode) {
-        brownNoiseNode.disconnect();
-        brownNoiseNode = null;
-      }
-      if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-      }
+      chrome.runtime.sendMessage({ action: 'stopNoise' });
     }
+    chrome.storage.local.set({ brownNoiseEnabled: e.target.checked });
   });
+});
 
-  function startTimer() {
-    isRunning = true;
-    updateDisplay();
-  }
-
-  function stopTimer() {
-    isRunning = false;
-    updateDisplay();
-  }
-
-  function resetTimer() {
-    timeLeft = 25 * 60;
-    isRunning = false;
-    updateDisplay();
-  }
-
-  function updateDisplay() {
-    document.getElementById('time').textContent = formatTime(timeLeft);
-    if (isRunning) {
-      document.getElementById('start').style.display = 'none';
-      document.getElementById('stop').style.display = 'inline';
-      document.getElementById('resume').style.display = 'none';
-    } else {
-      document.getElementById('start').style.display = timeLeft === 25 * 60 ? 'inline' : 'none';
-      document.getElementById('stop').style.display = 'none';
-      document.getElementById('resume').style.display = timeLeft < 25 * 60 && timeLeft > 0 ? 'inline' : 'none';
-    }
-    document.getElementById('reset').style.display = 'inline';
-  }
-
-  function formatTime(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-  }
-
-  chrome.runtime.onMessage.addListener((request) => {
-    if (request.action === 'updateTime') {
-      timeLeft = request.timeLeft;
-      document.getElementById('time').textContent = formatTime(timeLeft);
-    } else if (request.action === 'timerEnded') {
-      resetTimer();
-    }
-  });
-
-  // Initial button states
+function startTimer() {
+  isRunning = true;
   updateDisplay();
+  saveState();
+}
 
-  let audioContext;
-  let brownNoiseNode;
+function stopTimer() {
+  isRunning = false;
+  updateDisplay();
+  saveState();
+}
+
+function resetTimer() {
+  timeLeft = 25 * 60; // Set to 25 minutes
+  isRunning = false;
+  isBreak = false;
+  updateDisplay();
+  saveState();
+}
+
+function updateDisplay() {
+  document.getElementById('time').textContent = formatTime(timeLeft);
+  if (isRunning) {
+    document.getElementById('start').style.display = 'none';
+    document.getElementById('stop').style.display = 'inline';
+    document.getElementById('resume').style.display = 'none';
+  } else {
+    document.getElementById('start').style.display = timeLeft === 25 * 60 ? 'inline' : 'none'; // Set to 25 minutes
+    document.getElementById('stop').style.display = 'none';
+    document.getElementById('resume').style.display = timeLeft < 25 * 60 && timeLeft > 0 ? 'inline' : 'none'; // Set to 25 minutes
+  }
+  document.getElementById('reset').style.display = 'inline';
+}
+
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+}
+
+function saveState() {
+  chrome.storage.local.set({ timeLeft, isRunning, isBreak });
+}
+
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action === 'updateTime') {
+    timeLeft = request.timeLeft;
+    document.getElementById('time').textContent = formatTime(timeLeft);
+  } else if (request.action === 'timerEnded') {
+    isBreak = request.isBreak;
+    updateDisplay();
+  }
 });

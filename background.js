@@ -1,6 +1,7 @@
 let timer;
-let timeLeft = 25 * 60;
+let timeLeft = 25 * 60; // Set to 25 minutes
 let isRunning = false;
+let isBreak = false;
 let audioContext;
 let brownNoiseNode;
 
@@ -12,7 +13,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'resetTimer') {
     resetTimer();
   } else if (request.action === 'getTimerState') {
-    sendResponse({ timeLeft, isRunning });
+    sendResponse({ timeLeft, isRunning, isBreak });
   } else if (request.action === 'startNoise') {
     startNoise();
   } else if (request.action === 'stopNoise') {
@@ -23,7 +24,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function startNoise() {
   if (!audioContext) {
     audioContext = new (AudioContext || webkitAudioContext)();
-    await audioContext.audioWorklet.addModule('brown-noise-processor.js');
+    await audioContext.audioWorklet.addModule(chrome.runtime.getURL('brown-noise-processor.js'));
     brownNoiseNode = new AudioWorkletNode(audioContext, 'brown-noise-processor');
     brownNoiseNode.connect(audioContext.destination);
   }
@@ -49,21 +50,48 @@ function startTimer() {
       } else {
         clearInterval(timer);
         isRunning = false;
-        chrome.runtime.sendMessage({ action: 'timerEnded' });
+        if (isBreak) {
+          timeLeft = 25 * 60; // Set to 25 minutes
+          isBreak = false;
+          showNotification("Work time! 25 minutes.");
+        } else {
+          timeLeft = 5 * 60; // Set to 5 minutes
+          isBreak = true;
+          showNotification("Break time! 5 minutes.");
+        }
+        chrome.runtime.sendMessage({ action: 'timerEnded', isBreak });
+        startTimer();
       }
     }, 1000);
     isRunning = true;
+    saveState();
   }
 }
 
 function stopTimer() {
   clearInterval(timer);
   isRunning = false;
+  saveState();
 }
 
 function resetTimer() {
   clearInterval(timer);
-  timeLeft = 25 * 60;
+  timeLeft = 25 * 60; // Set to 25 minutes
   isRunning = false;
+  isBreak = false;
   stopNoise();
+  saveState();
+}
+
+function saveState() {
+  chrome.storage.local.set({ timeLeft, isRunning, isBreak });
+}
+
+function showNotification(message) {
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'images/icon48.png',
+    title: 'Pomodoro Timer',
+    message: message
+  });
 }
