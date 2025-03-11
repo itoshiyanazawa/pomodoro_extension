@@ -1,8 +1,9 @@
 let timer;
 let timeLeft = 25 * 60; // Initial time in seconds
+let isRunning = false;
 
 document.getElementById('start').addEventListener('click', () => {
-  if (!timer) {
+  if (!isRunning) {
     timer = setInterval(() => {
       if (timeLeft > 0) {
         timeLeft--;
@@ -11,10 +12,51 @@ document.getElementById('start').addEventListener('click', () => {
         document.getElementById('time').textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
       } else {
         clearInterval(timer);
-        timer = null;
-        alert("Time's up!");
+        isRunning = false;
+        document.getElementById('start').textContent = 'Start';
+        document.getElementById('stop').style.display = 'none';
+        document.getElementById('resume').style.display = 'none';
+        document.getElementById('reset').style.display = 'inline';
       }
     }, 1000);
+    isRunning = true;
+    document.getElementById('start').style.display = 'none';
+    document.getElementById('stop').style.display = 'inline';
+    document.getElementById('reset').style.display = 'inline';
+  }
+});
+
+document.getElementById('stop').addEventListener('click', () => {
+  clearInterval(timer);
+  isRunning = false;
+  document.getElementById('start').style.display = 'none';
+  document.getElementById('stop').style.display = 'none';
+  document.getElementById('resume').style.display = 'inline';
+  document.getElementById('reset').style.display = 'inline';
+});
+
+document.getElementById('resume').addEventListener('click', () => {
+  if (!isRunning) {
+    timer = setInterval(() => {
+      if (timeLeft > 0) {
+        timeLeft--;
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        document.getElementById('time').textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      } else {
+        clearInterval(timer);
+        isRunning = false;
+        document.getElementById('start').textContent = 'Start';
+        document.getElementById('stop').style.display = 'none';
+        document.getElementById('resume').style.display = 'none';
+        document.getElementById('reset').style.display = 'inline';
+      }
+    }, 1000);
+    isRunning = true;
+    document.getElementById('start').style.display = 'none';
+    document.getElementById('stop').style.display = 'inline';
+    document.getElementById('resume').style.display = 'none';
+    document.getElementById('reset').style.display = 'inline';
   }
 });
 
@@ -22,8 +64,19 @@ document.getElementById('reset').addEventListener('click', () => {
   clearInterval(timer);
   timer = null;
   timeLeft = 25 * 60;
+  isRunning = false;
   document.getElementById('time').textContent = '25:00';
+  document.getElementById('start').textContent = 'Start';
+  document.getElementById('start').style.display = 'inline';
+  document.getElementById('stop').style.display = 'none';
+  document.getElementById('resume').style.display = 'none';
+  document.getElementById('reset').style.display = 'inline';
 });
+
+// Initial button states
+document.getElementById('stop').style.display = 'none';
+document.getElementById('resume').style.display = 'none';
+document.getElementById('reset').style.display = 'inline';
 
 let audioContext;
 let brownNoiseNode;
